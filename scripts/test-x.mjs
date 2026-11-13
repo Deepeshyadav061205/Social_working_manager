@@ -58,14 +58,14 @@ for (const level of ["log", "error", "warn"]) {
 const out = (...args) => origConsole.log(...args);
 
 // ---- Load modules ----
-const typesMod = loadTsModule("lib/types.ts");
-const textMod = loadTsModule("lib/text.ts", { "@/lib/types": typesMod });
-const platformTypes = loadTsModule("lib/platforms/types.ts", { "@/lib/types": typesMod });
-const xMod = loadTsModule("lib/platforms/x.ts", {
+const typesMod = loadTsModule("src/lib/types.ts");
+const textMod = loadTsModule("src/lib/text.ts", { "@/lib/types": typesMod });
+const platformTypes = loadTsModule("src/lib/platforms/types.ts", { "@/lib/types": typesMod });
+const xMod = loadTsModule("src/lib/platforms/x.ts", {
   "@/lib/platforms/types": platformTypes,
   "@/lib/text": textMod,
 });
-const cryptoMod = loadTsModule("lib/crypto.ts", { "server-only": {} });
+const cryptoMod = loadTsModule("src/lib/crypto.ts", { "server-only": {} });
 
 // In-memory fake of the Supabase service-role client (one platform_connections row).
 const store = { row: null, upserts: [] };
@@ -93,7 +93,7 @@ function makeAdmin() {
   };
 }
 
-const connMod = loadTsModule("lib/connections.ts", {
+const connMod = loadTsModule("src/lib/connections.ts", {
   "server-only": {},
   "@/lib/crypto": cryptoMod,
   "@/lib/platforms": {

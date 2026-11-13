@@ -2,12 +2,12 @@ import type { Config } from "tailwindcss";
 import animate from "tailwindcss-animate";
 
 /**
- * Design tokens are defined in app/globals.css and mapped here.
+ * Design tokens are defined in src/app/globals.css and mapped here.
  * Components must use semantic Tailwind classes (bg-background, bg-surface-1,
  * text-foreground, text-yellow, text-blue, …) and never hardcode hex values.
  */
 const config: Config = {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
+  content: ["./src/app/**/*.{ts,tsx}", "./src/components/**/*.{ts,tsx}", "./src/lib/**/*.{ts,tsx}"],
   theme: {
     container: { center: true, padding: "1.5rem", screens: { "2xl": "1280px" } },
     extend: {

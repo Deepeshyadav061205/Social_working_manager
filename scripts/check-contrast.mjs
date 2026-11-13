@@ -6,13 +6,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const cssPath = path.join(process.cwd(), "app", "globals.css");
+const cssPath = path.join(process.cwd(), "src", "app", "globals.css");
 const css = fs.readFileSync(cssPath, "utf8");
 
 function readVar(name) {
   const re = new RegExp(`--${name}:\\s*([^;]+);`);
   const m = css.match(re);
-  if (!m) throw new Error(`Missing CSS token --${name} in app/globals.css`);
+  if (!m) throw new Error(`Missing CSS token --${name} in src/app/globals.css`);
   return m[1].trim();
 }
 

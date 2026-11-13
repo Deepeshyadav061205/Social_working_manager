@@ -1,72 +1,199 @@
 # Social Working Manager
 
-**AI-powered multi-platform content studio for founders, engineers, and creators.**  
-Turn a rough idea into publication-ready **LinkedIn posts**, **X (Twitter) threads**, and **Markdown blog articles** with live streaming generation, platform-specific tone & formatting, reusable `{placeholder}` templates, a monthly planning calendar, and one-click publishing.
+**An AI-powered, single-pass multi-platform content workspace engineered with Next.js 14, Supabase PostgreSQL (RLS), and Server-Sent Event (SSE) LLM streaming.**  
+Transform rough technical notes or founder updates into formatted **LinkedIn posts**, **280-character-compliant X (Twitter) threads**, and **Markdown blog articles** in one unified pipeline — saving an estimated **~90–94%** of manual cross-platform writing time.
 
 <p align="center">
-  <img src="./docs/screenshots/home-1280.png" alt="Social Working Manager landing page on desktop" width="100%" />
+  <img src="./docs/screenshots/home-1280.png" alt="Social Working Manager landing page" width="100%" />
 </p>
 
 ---
 
-## Workflow Impact & Time Reduction
+## Table of Contents
 
-Social Working Manager eliminates context switching between notes apps, chatbots, thread splitters, and social composers. Below are **estimated creator workflow benchmarks** comparing manual multi-platform writing against using Social Working Manager:
-
-| Workflow Task | Manual Process | With Social Working Manager | Time Saved |
-| :--- | :---: | :---: | :---: |
-| Turn rough bullet points into a polished LinkedIn post | ~25 min | **~1.5 min** | **94% faster** |
-| Split, number & enforce 280-char limits on an X thread | ~12 min | **< 5 sec** *(auto-enforced)* | **99% faster** |
-| Adapt 1 core idea across LinkedIn + X + Blog Markdown | ~50 min | **~4 min** | **92% faster** |
-| Weekly batch (5 cross-platform posts + planning) | ~5.5 hrs/week | **~25 min/week** | **~5 hrs/week saved** |
-
-> *Overall estimated drafting-to-publish overhead is reduced by **~90%**, cutting per-post turnaround from ~45 minutes to under 4 minutes. (Figures above are illustrative workflow estimates combining live SSE streaming, starter templates, and automated formatting.)*
+- [Theoretical Foundations & Performance Model](#theoretical-foundations--performance-model)
+- [Time Reduction Graphs & Estimated Benchmarks](#time-reduction-graphs--estimated-benchmarks)
+- [Defense-in-Depth: Hiding Sensitive Files & Blocking Direct Access](#defense-in-depth-hiding-sensitive-files--blocking-direct-access)
+- [Visual Walkthrough](#visual-walkthrough)
+- [Clean Repository & Folder Architecture](#clean-repository--folder-architecture)
+- [Tech Stack](#tech-stack)
+- [Quick Start & Deployment](#quick-start--deployment)
 
 ---
 
-## Visual Walkthrough & Screen Guide
+## Theoretical Foundations & Performance Model
 
-### 1. Landing Page & Interactive Hero (`/` — Desktop & Mobile)
-A high-contrast black canvas (`#000000`) layered over a capped-FPS, yellow-to-blue animated ASCII gradient field (`AsciiGradientBg`), scroll-linked text reveal (`CylinderReveal`), value highlight section (`BlurValueParagraph`), and step-by-step workflow breakdown. Respects `prefers-reduced-motion` and falls back to an instant plain UI when `NEXT_PUBLIC_BASIC_UI=true`.
+### 1. Context-Switching Overhead: From $O(P \times T)$ to $O(1)$
+In traditional creator workflows, producing content across $P$ platforms (**LinkedIn**, **X**, **Blog**) and $T$ editorial dimensions (**tone**, **character limits**, **structure**, **thread numbering**) incurs multiplicative friction:
+
+$$\text{Total Time}_{\text{manual}} \approx \sum_{i=1}^{P} \left( t_{\text{ideate}} + t_{\text{draft},i} + t_{\text{format},i} + t_{\text{context-switch}} \right)$$
+
+Moving a single idea manually across three formats forces repeated cognitive context switches (long-form hook crafting → strict 280-character segmentation → Markdown structuring). Social Working Manager consolidates platform grammars and tone constraints into parameterized system prompts (`src/lib/prompts.ts`) paired with server-side limit enforcement (`src/lib/text.ts`), collapsing multi-platform drafting into a single $O(1)$ input-to-output pipeline.
+
+### 2. Perceived Latency Model: $\text{TTFT}$ vs. $\text{TTLB}$
+Traditional blocking LLM endpoints delay feedback until **Time-To-Last-Byte ($\text{TTLB}$)** completes across generation, refinement, and database persistence:
+
+$$L_{\text{blocking}} = L_{\text{LLM\_pass1}} + L_{\text{LLM\_refine}} + L_{\text{DB\_write}}$$
+
+By streaming Google Gemini responses via REST SSE (`streamGenerateContent?alt=sse` in `src/lib/llm.ts` and `/api/generate/stream`), perceived waiting drops from full generation time to **Time-To-First-Token ($\text{TTFT}$)**:
+
+$$L_{\text{perceived}} \approx \text{TTFT}_{\text{stream}} \ll \text{TTLB}$$
+
+Post-generation X limit checks (`enforceXLimits`) and PostgreSQL persistence (`generated_contents`) execute at stream completion cleanly without blocking token delivery.
+
+### 3. System Pipeline & Security Boundary Flow
+
+```mermaid
+flowchart LR
+    U["Creator Browser (React 18 Editor)"] -->|"HTTPS Request"| MW["Edge Middleware (src/middleware.ts)"]
+    MW -->|"Session Verified (Supabase SSR)"| API["Route Handler (/api/generate/stream)"]
+    API -->|"server-only Guard"| LLM["Streaming Engine (Gemini SSE / OpenAI / Anthropic)"]
+    LLM -->|"Live Token Chunks (SSE)"| U
+    API -->|"AES-256-GCM Encrypted Tokens + RLS"| DB[("Supabase PostgreSQL")]
+    U -->|"OAuth 2.0 PKCE or One-Click Transfer"| PUB["LinkedIn / X / Markdown Export"]
+```
+
+---
+
+## Time Reduction Graphs & Estimated Benchmarks
+
+> *All time-reduction figures below represent **illustrative creator workflow estimates** comparing manual cross-platform writing, formatting, and scheduling against using Social Working Manager's streaming editor, templates, and automated thread enforcement.*
+
+### Task Duration Comparison (Minutes per Task — Lower is Better)
+
+```mermaid
+xychart-beta
+    title "Estimated Writing & Formatting Time: Manual vs. Social Working Manager (Minutes)"
+    x-axis ["Single LinkedIn Post", "X Thread Split & Limits", "3-Platform Adapt", "Template + Refine Flow", "Avg Per-Post Prep"]
+    y-axis "Minutes" 0 --> 55
+    bar [25, 12, 50, 30, 45]
+    bar [1.5, 0.1, 4, 2, 3.5]
+    line [25, 12, 50, 30, 45]
+    line [1.5, 0.1, 4, 2, 3.5]
+```
+
+### Weekly Time Allocation Breakdown (5 Cross-Platform Posts / Week)
+
+```mermaid
+pie showData
+    title Weekly Content Workflow (~330 min Manual Baseline -> 25 min Active App Time)
+    "Saved Creator Time (~305 min saved / 92.4%)" : 305
+    "Active Drafting & Review in App (~25 min / 7.6%)" : 25
+```
+
+### Detailed Efficiency Matrix & Visual Reduction Scale
+
+| Workflow Stage | Manual Time | With App | Reduction | Visual Time Saved Scale |
+| :--- | :---: | :---: | :---: | :--- |
+| **Single LinkedIn Post** *(ideate + draft + hook)* | `25.0 min` | **`1.5 min`** | **-94%** | `███████████████████░` *(23.5 min saved)* |
+| **X Thread Formatting** *(split + 280-char check + numbering)* | `12.0 min` | **`< 5 sec`** | **-99%** | `████████████████████` *(11.9 min saved)* |
+| **3-Platform Adaptation** *(LinkedIn + X + Blog Markdown)* | `50.0 min` | **`4.0 min`** | **-92%** | `██████████████████░░` *(46.0 min saved)* |
+| **Reusable Structure Prep** *(formatting + prompt reuse)* | `30.0 min` | **`2.0 min`** | **-93%** | `███████████████████░` *(28.0 min saved)* |
+| **Weekly 5-Post Sprint** *(full batch + calendar plan)* | `330 min` *(5.5 hrs)* | **`25 min`** | **-92%** | `██████████████████░░` *(~5 hrs/week saved)* |
+
+---
+
+## Defense-in-Depth: Hiding Sensitive Files & Blocking Direct Access
+
+This repository enforces **5 isolation layers** so secrets, credentials, internal tooling, and database tokens cannot be accessed directly via GitHub, the browser, or API responses:
+
+1. **Repository & Secret Exclusion (`.gitignore`):**
+   - Strictly excludes `.env`, `.env.*` *(except safe placeholder `.env.example`)*, private keys (`*.key`, `*.pem`, `*.p12`, `*.pfx`), local archives (`*.zip`, `*.tar.gz`), logs (`*.log`), IDE configs (`.vscode/`, `.idea/`), and build artifacts (`.next/`, `node_modules/`).
+2. **No Raw File Exposure Over HTTP:**
+   - All application modules reside cleanly inside `src/`. Next.js App Router only compiles routes inside `src/app/` and exposes **zero** source files, `.env*` files, SQL scripts (`supabase/`), or maintenance scripts (`scripts/`) over HTTP.
+3. **Crawler & Route Restrictions (`src/app/robots.ts` + HTTP Security Headers):**
+   - `src/app/robots.ts` explicitly disallows search crawlers on `/api/`, `/auth/`, and all protected workspace paths (`/dashboard`, `/create`, `/drafts`, `/history`, `/templates`, `/calendar`, `/connections`, `/settings`).
+   - `next.config.mjs` applies `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy`, and `Permissions-Policy` to every response.
+4. **Compile-Time Server-Only Isolation (`"server-only"`):**
+   - Sensitive server modules (`src/lib/crypto.ts`, `src/lib/connections.ts`, `src/lib/llm.ts`, `src/lib/oauth.ts`, `src/lib/supabase/server.ts`) import `"server-only"`, making accidental bundling into client JavaScript impossible at build time.
+5. **Edge Auth + PostgreSQL RLS + Column-Level Token Protection:**
+   - `src/middleware.ts` intercepts protected paths at the edge and redirects unauthenticated users to `/login`.
+   - OAuth access/refresh tokens are encrypted at rest with **AES-256-GCM** (`TOKEN_ENCRYPTION_KEY`) and protected via `REVOKE SELECT` column privileges in `supabase/migrations/002_protect_tokens.sql`.
+
+---
+
+## Visual Walkthrough
+
+### 1. Landing Page (`/` — High-Contrast Black + Yellow + Blue Theme)
+Combines a capped-FPS HTML5 Canvas ASCII gradient backdrop (`AsciiGradientBg`), scroll progress bar, 3D cylinder text reveal (`CylinderReveal`), and value highlight section (`BlurValueParagraph`). Supports `prefers-reduced-motion` and instant plain fallback (`NEXT_PUBLIC_BASIC_UI=true`).
 
 ![Landing page desktop](./docs/screenshots/home-1280.png)
 
----
-
 ### 2. Command Center Dashboard (`/dashboard`)
-Provides immediate quick-launch cards that pre-select the target platform (`/create?platform=LINKEDIN|X_TWITTER|BLOG`), live account counters (`Total Generated`, `Saved Drafts`, `Published / Transferred`, `Templates`), a "Continue your drafts" shortcut strip, platform bar chart visualization via Recharts, and recent activity logs.
+Displays quick-start platform launch cards (`/create?platform=LINKEDIN|X_TWITTER|BLOG`), real-time workspace metrics, recent draft shortcuts, and a Recharts **Posts per Platform** visualization.
 
 ![Dashboard desktop view](./docs/screenshots/dashboard-1280.png)
 
----
-
-### 3. Real-Time AI Streaming Editor (`/create`)
-Streams generated drafts token-by-token over Server-Sent Events (`/api/generate/stream`) directly into the live editor. Supports template selection with `{placeholder}` pre-fill, 4 selectable tones (`Professional`, `Casual`, `Informative`, `Friendly`), Markdown preview/edit toggle, **Refine flow** second-pass polishing (`/api/refine`), automatic server-side X 280-character thread numbering/splitting, draft saving, and publishing.
+### 3. Live Streaming Creation Workspace (`/create`)
+Streams AI drafts in real time via SSE, lets users pick `{placeholder}` templates and tones (`Professional`, `Casual`, `Informative`, `Friendly`), run an on-demand **Refine flow** pass (`/api/refine`), toggle Markdown preview, enforce X 280-char limits automatically, save drafts, or publish immediately.
 
 ![Create content streaming workspace](./docs/screenshots/create-1280.png)
 
----
-
-### 4. Drafts Library & Version Control (`/drafts`)
-Search, filter by platform, sort, reopen any draft inside the full Markdown editor (`/drafts/[id]`), compare raw vs. refined AI passes inside **History** (`/history`), or publish directly from a card.
+### 4. Drafts Library & Version Comparison (`/drafts`, `/history`)
+Searchable/filterable draft management, dedicated draft editing (`/drafts/[id]`), and raw vs. refined comparison inside generation history.
 
 ![Drafts library view](./docs/screenshots/drafts-1280.png)
 
----
-
 ### 5. Split-Pane Authentication (`/login`, `/register`)
-Clean asymmetric authentication flow backed by Supabase Auth, featuring form validation with `react-hook-form` + `zod` and seamless redirect support back into protected workspace routes.
+Asymmetric login/signup views integrated with Supabase Auth (`react-hook-form` + `zod` schema validation).
 
 ![Split-screen login page](./docs/screenshots/login-1280.png)
 
----
+### 6. Responsive Mobile Workspace (`390px`)
+Responsive 5-slot mobile navigation bar with a left-sliding full menu drawer exposing all 8 workspace sections.
 
-### 6. Responsive Mobile Experience (`390px` Viewport)
-Every route adapts cleanly to narrow viewports with a sticky 5-slot mobile bottom bar (`Dashboard`, `Create`, `Drafts`, `Calendar`, `More`) and a slide-over left navigation drawer exposing all 8 workspace sections.
-
-| Mobile Hero | Mobile Dashboard | Mobile Create Studio | Slide-Over Nav Drawer |
+| Mobile Landing | Mobile Dashboard | Mobile Create | Mobile Nav Drawer |
 | :---: | :---: | :---: | :---: |
 | ![Mobile home](./docs/screenshots/home-390.png) | ![Mobile dashboard](./docs/screenshots/dashboard-390.png) | ![Mobile create](./docs/screenshots/create-390.png) | ![Mobile drawer](./docs/screenshots/mobile-drawer-390.png) |
+
+---
+
+## Clean Repository & Folder Architecture
+
+Application source code is encapsulated inside `src/`, keeping root configuration, SQL migrations, developer scripts, and documentation neatly separated:
+
+```text
+├── src/
+│   ├── app/
+│   │   ├── (marketing)/       # Public landing page (/)
+│   │   ├── (auth)/            # Split-screen /login & /register pages
+│   │   ├── (app)/             # Protected routes: dashboard, create, drafts, history, templates, calendar, connections, settings
+│   │   ├── api/               # REST & SSE handlers (/generate/stream, /refine, /publish, /connections/*, CRUD)
+│   │   ├── globals.css        # CSS color tokens (--rgb-*), selection, typography, reduced-motion rules
+│   │   ├── layout.tsx         # Fonts (Fraunces + Inter), Toaster, NavProgress, metadata
+│   │   └── robots.ts          # Crawler disallow rules for /api/, /auth/, and workspace routes
+│   ├── components/
+│   │   ├── auth/              # Login & Register client forms
+│   │   ├── calendar/          # Monthly planning calendar grid & mobile list view
+│   │   ├── connections/       # OAuth connection cards & Publish / One-Click Transfer modal
+│   │   ├── create/            # Streaming editor, platform/tone chips, Markdown preview
+│   │   ├── dashboard/         # Stat cards & Recharts platform breakdown chart
+│   │   ├── drafts/            # Draft list, filters & standalone draft editor
+│   │   ├── history/           # Raw vs. refined diff viewer
+│   │   ├── landing/           # ASCII gradient canvas, CylinderReveal, BlurValueParagraph, ScrollProgress
+│   │   ├── layout/            # AppShell sidebar, mobile drawer, NavProgress, Logo
+│   │   ├── reactbits/         # Dark-tokenized interactive cards & accents
+│   │   └── ui/                # Shared accessible Radix + Tailwind UI primitives
+│   ├── lib/
+│   │   ├── platforms/         # Platform adapters (LinkedIn, X OAuth/thread publisher, Blog Markdown)
+│   │   ├── supabase/          # SSR, browser & middleware Supabase clients
+│   │   ├── crypto.ts          # Server-only AES-256-GCM encryption for OAuth tokens
+│   │   ├── llm.ts             # Pluggable Gemini SSE / OpenAI / Anthropic engine
+│   │   ├── prompts.ts         # Structured platform & tone prompt builders
+│   │   └── text.ts            # X 280-char boundary enforcement & thread splitter
+│   └── middleware.ts          # Edge auth session refresh & route protection
+├── supabase/
+│   ├── migrations/            # Incremental SQL migrations (schema, token column locks, refresh tokens)
+│   └── setup_all.sql          # Single-file idempotent database bootstrap script
+├── scripts/                   # Contrast checker, LLM benchmarks, X mock test suite, RLS verifier
+├── docs/
+│   ├── guides/                # X OAuth 2.0 setup guide (X_SETUP.md)
+│   ├── reports/               # Project report, FR traceability matrix, demo walkthrough
+│   └── screenshots/           # Desktop (1280px) & mobile (390px) UI screenshots
+├── .env.example               # Safe template of required environment variables (no secrets)
+├── .gitignore                 # Excludes .env*, private keys, archives, logs, build caches
+└── next.config.mjs            # Security headers (HSTS, X-Frame-Options, nosniff, Referrer-Policy)
+```
 
 ---
 
@@ -74,140 +201,73 @@ Every route adapts cleanly to narrow viewports with a sticky 5-slot mobile botto
 
 | Layer | Technologies |
 | :--- | :--- |
-| **Framework & Language** | [Next.js 14](https://nextjs.org/) (App Router), React 18, TypeScript 5 |
-| **Styling & Design Tokens** | [Tailwind CSS 3.4](https://tailwindcss.com/) with RGB CSS variable tokens (`--rgb-*` for alpha transparency), custom WCAG AA high-contrast palette |
-| **UI Primitives & Charts** | [Radix UI](https://www.radix-ui.com/) (`Dialog`, `AlertDialog`, `DropdownMenu`, `Select`, `Tabs`), `lucide-react`, `sonner` toasts, `recharts`, `react-markdown` |
-| **Animations & Canvas** | Custom HTML5 Canvas ASCII gradient renderer (`requestAnimationFrame` capped at 20 FPS), `IntersectionObserver` scroll reveals, `motion` |
-| **Database & Auth** | [Supabase](https://supabase.com/) (`@supabase/ssr`, `@supabase/supabase-js`) — PostgreSQL, Email Auth, Row Level Security (RLS), Postgres signup trigger |
-| **AI Generation (Pluggable)** | Google Gemini REST streaming (`streamGenerateContent?alt=sse`), OpenAI API, Anthropic Messages API (`LLM_PROVIDER` switch) |
-| **Publishing & Security** | LinkedIn OAuth 2.0, X (Twitter) OAuth 2.0 + PKCE with automatic refresh-token rotation, AES-256-GCM encrypted token columns, **One-Click Transfer** fallback |
-| **Forms, Validation & Testing** | `react-hook-form`, `zod`, `@hookform/resolvers`, Playwright, custom WCAG contrast & RLS isolation verification scripts |
+| **Core Framework** | Next.js `14.2` (App Router), React `18.3`, TypeScript `5.9` (`strict: true`) |
+| **Styling & Design System** | Tailwind CSS `3.4`, `tailwindcss-animate`, CSS custom properties with `<alpha-value>` RGB triplets, WCAG AA checked palette |
+| **UI & Data Visualization** | Radix UI (`Dialog`, `AlertDialog`, `DropdownMenu`, `Select`, `Tabs`), `lucide-react`, `sonner`, `recharts`, `react-markdown` |
+| **Canvas & Motion** | Custom HTML5 2D Canvas ASCII field (`20 FPS` cap, DPR `<= 1.5`), `IntersectionObserver` scroll reveals, `motion` |
+| **Database & Auth** | Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — PostgreSQL, Email Auth, Row-Level Security (RLS), Signup Triggers |
+| **AI Providers** | Google Gemini REST SSE (`streamGenerateContent?alt=sse`), OpenAI Chat Completions, Anthropic Messages API |
+| **Publishing & Crypto** | LinkedIn OAuth 2.0, X OAuth 2.0 PKCE + refresh rotation, AES-256-GCM encryption (`TOKEN_ENCRYPTION_KEY`), One-Click Transfer |
+| **Validation & QA** | `react-hook-form`, `zod`, Playwright (`1.65`), `scripts/check-contrast.mjs`, `scripts/test-x.mjs`, `scripts/test-rls.mjs` |
 
 ---
 
-## Key Capabilities
-
-- **Streaming Generation + Safe DB Persistence**: Text streams live to the browser and persists generation metadata (`contentId`, `version`) without blocking token delivery if a DB write warns.
-- **Zero-Credential Demoable Publishing**: Even if LinkedIn or X OAuth credentials are omitted, clicking **Publish / Transfer** copies content to the clipboard, opens the composer (or downloads `.md` for Blog articles), and provides step-by-step publish guidance.
-- **X Thread Safeguards**: Pre-checks 280-character boundaries per post, auto-splits long copy into numbered posts (`1/N`, `2/N`), handles partial thread posting failures transparently, and supports `X_MOCK=true` locally.
-- **Row-Level Security & Encrypted Secrets**: OAuth tokens are encrypted server-side with AES-256-GCM (`TOKEN_ENCRYPTION_KEY`) and protected from anon/authenticated column exposure via PostgreSQL column grants (`supabase/migrations/002_protect_tokens.sql`).
-- **Accessibility & Contrast Verified**: All 19 UI foreground/background token combinations meet **WCAG AA (>= 4.5:1)** via `npm run check:contrast`.
-
----
-
-## Project Structure
-
-```text
-├── app/
-│   ├── (marketing)/        # Public landing page (/)
-│   ├── (auth)/             # Split-screen /login & /register flows
-│   ├── (app)/              # Protected workspace (/dashboard, /create, /drafts, /history, /templates, /calendar, /connections, /settings)
-│   └── api/                # Route handlers (/generate, /generate/stream, /refine, /publish, /connections/*, CRUD endpoints)
-├── components/
-│   ├── create/             # Streaming editor, platform/tone chips, live Markdown preview
-│   ├── connections/        # OAuth status cards & Publish / One-Click Transfer dialog
-│   ├── dashboard/          # Stats, quick actions, Recharts platform visualization
-│   ├── landing/            # ASCII gradient canvas, CylinderReveal, BlurValueParagraph, ScrollProgress
-│   ├── layout/             # AppShell sidebar + mobile drawer, NavProgress, Logo
-│   └── ui/                 # Theme-tokenized shared Radix/Tailwind primitives
-├── lib/                    # LLM streaming/providers, X limits, AES-256-GCM crypto, OAuth helpers, Supabase clients
-├── supabase/               # Full schema setup (setup_all.sql) & incremental migrations
-├── scripts/                # Setup checks, contrast checker, X mock suite, RLS tests, LLM benchmarks
-└── docs/                   # Architecture report, X setup guide, verification screenshots
-```
-
----
-
-## Getting Started
+## Quick Start & Deployment
 
 ### 1. Prerequisites
-- **Node.js** 18.18+ (20+ / 22+ recommended) and **npm**
-- A **[Supabase](https://supabase.com)** project (PostgreSQL + Auth)
-- An API key for at least one LLM provider: **Google Gemini** *(default)*, **OpenAI**, or **Anthropic**
+- **Node.js** `18.18+` (or `20+` / `22+`) and **npm**
+- A free **[Supabase](https://supabase.com)** project
+- An API key for **Google Gemini** *(default)*, **OpenAI**, or **Anthropic**
 
-### 2. Configure Supabase
+### 2. Supabase Database Setup
 1. Create a project at [database.new](https://database.new).
-2. Open **SQL Editor -> New query** in Supabase, paste [`supabase/setup_all.sql`](./supabase/setup_all.sql), and run it.  
-   *(Creates enums, tables, RLS policies, column-level token protection, and the signup trigger seeding starter templates.)*
-3. In **Authentication -> Providers -> Email**, toggle **Confirm email** off for instant local testing.
-4. In **Authentication -> URL Configuration**, add `http://localhost:3000/auth/callback` to **Redirect URLs**.
-5. Grab your Project URL, `anon` public key, and `service_role` key from **Project Settings -> API**.
+2. Open **SQL Editor → New query**, paste [`supabase/setup_all.sql`](./supabase/setup_all.sql), and run it.
+3. In **Authentication → Providers → Email**, disable **Confirm email** for local testing.
+4. Add `http://localhost:3000/auth/callback` under **Authentication → URL Configuration → Redirect URLs**.
 
-### 3. Environment Setup (Secrets stay local in `.env.local`)
-Copy `.env.example` to `.env.local` (`.env.local` is strictly gitignored and never pushed to GitHub):
+### 3. Local Environment (`.env.local` stays strictly private)
+Copy `.env.example` to `.env.local` and generate an encryption key:
 
 ```bash
 cp .env.example .env.local
+openssl rand -base64 32   # paste into TOKEN_ENCRYPTION_KEY
 ```
 
-Generate a 32-byte encryption key for `TOKEN_ENCRYPTION_KEY`:
-
-```bash
-openssl rand -base64 32
-```
-
-Fill in `.env.local`:
+Minimum required keys in `.env.local`:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-LLM_PROVIDER=gemini                 # gemini | openai | anthropic
+LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key
 
-TOKEN_ENCRYPTION_KEY=your_base64_32byte_key
+TOKEN_ENCRYPTION_KEY=your_32byte_base64_key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_BASIC_UI=false
 ```
 
-<details>
-<summary>Optional Environment Variables & OAuth Configuration</summary>
+> Optional OAuth setup instructions for direct X (Twitter) PKCE posting live in [docs/guides/X_SETUP.md](./docs/guides/X_SETUP.md). When OAuth keys are omitted, **Publish / Transfer** automatically switches to the zero-credential transfer flow.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `LLM_MODEL` | provider default | Override model name (e.g. `gemini-2.5-flash`) |
-| `LLM_MAX_OUTPUT_TOKENS` | `8192` | Max tokens per generation response |
-| `LLM_TWO_PASS` | `false` | Set `true` to run an automatic second LLM refinement pass |
-| `LLM_REFINE_ENABLED` | `true` | Enable `/api/refine` and the **Refine flow** editor button |
-| `NEXT_PUBLIC_BASIC_UI` | `false` | Set `true` to render the plain, un-animated fallback UI |
-| `LINKEDIN_CLIENT_ID` / `SECRET` | unset | Optional LinkedIn OAuth direct publishing ([callback]: `/api/connections/linkedin/callback`) |
-| `X_CLIENT_ID` / `SECRET` | unset | Optional X OAuth 2.0 PKCE direct publishing ([docs/X_SETUP.md](./docs/X_SETUP.md)) |
-| `X_MOCK` | `false` | Dev-only mock mode (`@mock_user`) for testing X OAuth & posting without API credits |
-
-</details>
-
-### 4. Install & Run Locally
+### 4. Run & Verify
 
 ```bash
 npm install
-npm run check:setup   # Optional: verify env, Supabase schema & LLM connectivity
-npm run dev
+npm run check:setup      # Verify env vars, Supabase tables/triggers & LLM health
+npm run check:contrast   # Verify all 19 WCAG AA color pairs (>= 4.5:1)
+npm run typecheck        # Run strict TypeScript checking
+npm run dev              # Launch at http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
-## Available Scripts
-
-| Command | Description |
+| Script | Purpose |
 | :--- | :--- |
-| `npm run dev` | Start Next.js development server (`localhost:3000`) |
-| `npm run build` | Build production bundle |
-| `npm run typecheck` | Run TypeScript type checking (`tsc --noEmit`) |
-| `npm run lint` | Run ESLint |
-| `npm run check:contrast` | Validate WCAG AA contrast ratios across all theme token pairs |
-| `npm run test:x` | Run unit & mock integration tests for X formatting, refresh rotation & error handling |
-| `npm run test:rls` | Verify Supabase RLS tenant isolation |
-| `npm run check:setup` | Diagnose environment variables, DB tables, triggers & live LLM reachability |
-| `npm run bench:llm` | Benchmark latency across LLM model variants |
+| `npm run dev` / `npm run build` | Development server & production build |
+| `npm run typecheck` / `npm run lint` | TypeScript & ESLint validation |
+| `npm run check:contrast` | Automated WCAG AA palette verification |
+| `npm run test:x` | X thread splitting, token rotation & error mapping test suite |
+| `npm run test:rls` | Cross-tenant Supabase RLS isolation verification |
+| `npm run bench:llm` | LLM latency benchmark script |
 
----
-
-## Deploying to Vercel
-
-1. Import this repository into [Vercel](https://vercel.com/new).
-2. Add all required keys from `.env.example` in **Project Settings -> Environment Variables**, setting `NEXT_PUBLIC_APP_URL` to your deployed URL.
-3. Add `https://your-app.vercel.app/auth/callback` (plus OAuth callbacks if enabled) in Supabase **Authentication -> URL Configuration**.
-4. Deploy.
+### 5. Deploy to Vercel
+Import the repository into [Vercel](https://vercel.com/new), configure all variables from `.env.example` in **Project Settings → Environment Variables** (`NEXT_PUBLIC_APP_URL=https://your-app.vercel.app`), add `https://your-app.vercel.app/auth/callback` to Supabase Redirect URLs, and deploy.

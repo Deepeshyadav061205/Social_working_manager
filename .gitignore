@@ -5,18 +5,28 @@ node_modules/
 .next/
 out/
 
-# Local environment & secret files (keep .env.example public)
+# Local environment, secrets & private key material (keep .env.example public)
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.pfx
 
-# Build & TypeScript caches
+# Build, TypeScript & test caches
 *.tsbuildinfo
 next-env.d.ts
-
-# Archives & local OS / deploy artifacts
-*.zip
-.DS_Store
-.vercel
+coverage/
 /playwright-report/
 /test-results/
+
+# Local archives, logs, OS & IDE artifacts
+*.zip
+*.tar.gz
+*.log
+npm-debug.log*
+.DS_Store
+.vercel
+.vscode/
+.idea/

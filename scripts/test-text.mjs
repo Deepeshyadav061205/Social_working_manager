@@ -34,8 +34,8 @@ function loadTsModule(relPath, mocks = {}) {
   return mod.exports;
 }
 
-const typesMod = loadTsModule("lib/types.ts");
-const { countChars, splitXPosts, enforceXLimits } = loadTsModule("lib/text.ts", {
+const typesMod = loadTsModule("src/lib/types.ts");
+const { countChars, splitXPosts, enforceXLimits } = loadTsModule("src/lib/text.ts", {
   "@/lib/types": typesMod,
 });
 
