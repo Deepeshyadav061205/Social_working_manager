@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Next.js build outputs
+.next/
+out/
+
+# Local environment & secret files (keep .env.example public)
+.env
+.env.*
+!.env.example
+
+# Build & TypeScript caches
+*.tsbuildinfo
+next-env.d.ts
+
+# Archives & local OS / deploy artifacts
+*.zip
+.DS_Store
+.vercel
+/playwright-report/
+/test-results/
