@@ -9,9 +9,20 @@ const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", dis
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://socialworkingmanager.vercel.app"
+  ),
   title: { default: "Social Working Manager", template: "%s · Social Working Manager" },
   description:
     "An AI-assisted workspace to turn ideas into polished LinkedIn posts, X threads and blog articles — then edit, save, plan and publish.",
+  openGraph: {
+    title: "Social Working Manager",
+    description:
+      "AI-powered multi-platform content workspace for LinkedIn posts, X threads, and Markdown blogs.",
+    url: "/",
+    siteName: "Social Working Manager",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {

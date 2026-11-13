@@ -3,6 +3,8 @@
 **An AI-powered, single-pass multi-platform content workspace engineered with Next.js 14, Supabase PostgreSQL (RLS), and Server-Sent Event (SSE) LLM streaming.**  
 Transform rough technical notes or founder updates into formatted **LinkedIn posts**, **280-character-compliant X (Twitter) threads**, and **Markdown blog articles** in one unified pipeline — saving an estimated **~90–94%** of manual cross-platform writing time.
 
+> **Live Deployment:** **[https://socialworkingmanager.vercel.app/](https://socialworkingmanager.vercel.app/)**
+
 <p align="center">
   <img src="./docs/screenshots/home-1280.png" alt="Social Working Manager landing page" width="100%" />
 </p>
@@ -269,5 +271,9 @@ npm run dev              # Launch at http://localhost:3000
 | `npm run test:rls` | Cross-tenant Supabase RLS isolation verification |
 | `npm run bench:llm` | LLM latency benchmark script |
 
-### 5. Deploy to Vercel
-Import the repository into [Vercel](https://vercel.com/new), configure all variables from `.env.example` in **Project Settings → Environment Variables** (`NEXT_PUBLIC_APP_URL=https://your-app.vercel.app`), add `https://your-app.vercel.app/auth/callback` to Supabase Redirect URLs, and deploy.
+### 5. Live Production Deployment (Vercel)
+Hosted live at **[https://socialworkingmanager.vercel.app/](https://socialworkingmanager.vercel.app/)**.  
+To deploy your own instance on [Vercel](https://vercel.com/new):
+1. Import this GitHub repository in Vercel and configure all variables from `.env.example` under **Project Settings → Environment Variables** (`NEXT_PUBLIC_APP_URL=https://socialworkingmanager.vercel.app` or your custom domain).
+2. Add `https://socialworkingmanager.vercel.app/auth/callback` (and any enabled OAuth callback URLs) in Supabase **Authentication → URL Configuration → Redirect URLs**.
+3. Deploy — pushing to `main` automatically triggers production builds on Vercel.
