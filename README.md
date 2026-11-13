@@ -3,7 +3,7 @@
 **An AI-powered, single-pass multi-platform content workspace engineered with Next.js 14, Supabase PostgreSQL (RLS), and Server-Sent Event (SSE) LLM streaming.**  
 Transform rough technical notes or founder updates into formatted **LinkedIn posts**, **280-character-compliant X (Twitter) threads**, and **Markdown blog articles** in one unified pipeline — saving an estimated **~90–94%** of manual cross-platform writing time.
 
-> **Live Deployment:** **[https://socialworkingmanager.vercel.app/](https://socialworkingmanager.vercel.app/)**
+> **Live Deployment:** **[https://socialworkingmanager.vercel.app/](https://socialworkingmanager-29jv3z66x-deepeshyadav006s-projects.vercel.app/)**
 
 <p align="center">
   <img src="./docs/screenshots/home-1280.png" alt="Social Working Manager landing page" width="100%" />
